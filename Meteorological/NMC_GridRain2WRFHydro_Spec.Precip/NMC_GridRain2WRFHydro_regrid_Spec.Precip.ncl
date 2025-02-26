@@ -44,7 +44,7 @@ begin
 ; User settings
 ;----------------------------------------------------------------------
   dstGridName="geo_em.d03.nc"
-  srcFileName="NMC_01H_GridRain_202307*.nc"
+  srcFileName="NMC_01H_GridRain_202308*.nc"
   ;---------------------------------------------------------------;
   ; Set the domain number to agree with the geogrid file and      ;
   ; the IGRID option in the hydro.namelist for WRF-Hydro          ;
@@ -81,6 +81,7 @@ begin
   dlon2d=dstfile->XLONG_M(0,:,:)
   dlat2d=dstfile->XLAT_M(0,:,:)
   dims=dimsizes(dlat2d)
+  flag=0 
 
 ;----------------------------------------------------------------------
 ; Open source data files to be regridded...
@@ -183,7 +184,7 @@ begin
     v4!2 = "west_east"
     printVarSummary(v4)
 
-    ncdf->precip = v4
+    ncdf->precip_rate = v4
 
     delete([/var,v4,var2d,wgtFileName/])
     ; end do for prec variable
