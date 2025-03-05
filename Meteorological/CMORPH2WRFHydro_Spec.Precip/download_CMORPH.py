@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sat Jul  6 16:49:16 2024
-
-@author: SHe
+@author: shihx2003
 """
 
 #-*- coding: utf-8 -*-
