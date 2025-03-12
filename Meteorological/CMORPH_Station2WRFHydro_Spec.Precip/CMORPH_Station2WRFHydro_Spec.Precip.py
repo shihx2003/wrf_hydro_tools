@@ -1,7 +1,7 @@
 """
 auther: shihx2003
 create: 2025-03-11 14:20:05
-China Hourly Merged Precipitation Analysis(CMORPH) Data
+"China_Hourly_Merged_Precipitation_Analysis(CHMPA)_Data"
 """
 
 import os
@@ -58,14 +58,19 @@ def process_grd_file(i, grd_info):
         }
     )
     grd_ds["precip"].attrs["units"] = "mm/h"
-    grd_ds["precip"].attrs["description"] = "China Hourly Merged Precipitation Analysis(CMORPH) Data"
+    grd_ds["precip"].attrs["description"] = "China_Hourly_Merged_Precipitation_Analysis(CHMPA)_Data"
 
     return grd_ds
 
 def precip_regrid(forcing, geo_em, geo_sm):
+    """
+    Regrid the precipitation forcing data to the spatial resolution of the WRF-Hydro model domain.
+    NOTE: The input variable name must be 'precip_rate', and the unit is assumed to be mm/s.
+            
+    """
 
     regridder = xe.Regridder(forcing, geo_em, 'bilinear')
-    forcing_regrid = regridder(forcing.precip)
+    forcing_regrid = regridder(forcing.precip_rate)
     forcing_regrid.coords['west_east'] = geo_sm.x.values
     forcing_regrid.coords['south_north'] = geo_sm.y.values
     forcing_regrid = forcing_regrid.rename({'west_east': 'x', 'south_north': 'y'})
@@ -75,16 +80,24 @@ def precip_regrid(forcing, geo_em, geo_sm):
     return forcing_regrid
 
 def save_PRECIP_FORCING(forcing_regrid):
+    global out_path
     dates = pd.to_datetime(forcing_regrid.time.values)
     for i in range(dates.size):
         str = dates[i].strftime('%Y%m%d%H')
         precip_forcing = forcing_regrid.isel(time=[i]).to_dataset(name="precip_rate")
-        precip_forcing.to_netcdf(f"./output_files/{str}00.PRECIP_FORCING.nc")
+        precip_forcing.attrs['description'] = "China_Hourly_Merged_Precipitation_Analysis(CHMPA)_Data"
+        precip_forcing.attrs['units'] = "mm/s"
+        precip_forcing.to_netcdf(f"{out_path}/{str}00.PRECIP_FORCING.nc")
 
+###############################################
 start = datetime(2020, 7, 15, 0)
-end = datetime(2020, 8, 10, 23)
+end = datetime(2020, 7, 25, 23)
 zip_path = r"F:\CMORPH_Station\2020.zip"
 in_grd_path = "2020"
+out_path = "./output_files"
+###############################################
+if not os.path.exists(out_path):
+    os.makedirs(out_path)
 lon_min = 70.05
 lon_max = 139.95
 lat_min = 15.05
@@ -115,10 +128,11 @@ for i in range(npart):
     c_grd_info = [div_grd_info[i], div_time_coords[i]]
 
     results = Parallel(n_jobs=-1)(delayed(process_grd_file)(index, c_grd_info) for index in range(len(div_grd_info[i])))
-
     datasets.extend(results)
     forcing_ds = xr.concat(datasets, dim="time")
 
     forcing_ds['precip_rate'] = forcing_ds.precip / (60.0*60.0)
+    forcing_ds = forcing_ds.drop_vars('precip')
+
     forcing_regrid = precip_regrid(forcing_ds, geo_em_ds, geo_sm_ds)
     save_PRECIP_FORCING(forcing_regrid)
