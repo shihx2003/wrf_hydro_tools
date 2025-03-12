@@ -1,6 +1,7 @@
 """
 auther: shihx2003
 create: 2025-03-11 14:20:05
+China Hourly Merged Precipitation Analysis(CMORPH) Data
 """
 
 import os
