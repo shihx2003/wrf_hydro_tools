@@ -1,6 +1,5 @@
 #!/bin/bash
-# Author: shihx
-# Create: 2025-03-12 15:34:57
+
 # Set the start and end dates
 start_date="2020-07-15"  # Modify this to your desired start date (YYYY-MM-DD)
 end_date="2020-08-10"    # Modify this to your desired end date (YYYY-MM-DD)
@@ -39,9 +38,20 @@ while [[ "$current_date" < "$end_date" ]] || [[ "$current_date" == "$end_date" ]
     fi
     echo "Merging Completed"
 
+    echo "Selecting Required Variables for ${current_date}..."
+    cdo selname,Psurf_f_inst,Tair_f_inst,Wind_f_inst,Qair_f_inst,Rainf_f_tavg,SWdown_f_tavg,LWdown_f_tavg \
+        ./temp_work/merged_3h_${current_date_str}.nc4 ./temp_work/filtered_3h_${current_date_str}.nc4
+    if [[ $? -ne 0 ]]; then
+        echo "Error: Variable selection failed for ${current_date}. Skipping..."
+        current_date=$(date -d "$current_date +1 day" +"%Y-%m-%d")
+        continue
+    fi
+    echo "Variable Selection Completed"
+
+    # Use the filtered file for interpolation
     echo "Start Interpolating for ${current_date}..."
-    cdo inttime,${current_date},00:00:00,1hour ./temp_work/merged_3h_${current_date_str}.nc4 \
-                                                ./temp_work/interp_1h_${current_date_str}.nc4
+    cdo inttime,${current_date},00:00:00,1hour ./temp_work/filtered_3h_${current_date_str}.nc4 \
+                                               ./temp_work/interp_1h_${current_date_str}.nc4
     if [[ $? -ne 0 ]]; then
         echo "Error: Interpolation failed for ${current_date}. Skipping..."
         current_date=$(date -d "$current_date +1 day" +"%Y-%m-%d")
@@ -61,6 +71,9 @@ while [[ "$current_date" < "$end_date" ]] || [[ "$current_date" == "$end_date" ]
             echo "Error: Splitting failed for timestamp ${time_step}. Skipping..."
             continue
         fi
+
+        # Apply final NetCDF4 compression (Level 3) for NCL compatibility
+        ncks -4 -L 3 ${output_file} ${output_file}.tmp && mv ${output_file}.tmp ${output_file}
     done
     echo "Splitting Completed"
 
