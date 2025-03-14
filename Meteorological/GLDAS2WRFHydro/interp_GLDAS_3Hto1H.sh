@@ -1,14 +1,18 @@
 #!/bin/bash
 
 # Set the start and end dates
-start_date="2020-07-15"  # Modify this to your desired start date (YYYY-MM-DD)
-end_date="2020-08-10"    # Modify this to your desired end date (YYYY-MM-DD)
+start_date="2020-01-01"  # Modify this to your desired start date (YYYY-MM-DD)
+end_date="2020-12-31"    # Modify this to your desired end date (YYYY-MM-DD)
+
+# Specify the output directory where the files will be saved
+output_dir="/public/home/Shihuaixuan/Data/GLDAS2WRF-Hydro/2020"  # Modify this to your desired output directory
+mkdir -p $output_dir
 
 echo "###################################### All Start ##########################################"
 gladas_files="/public/home/Shihuaixuan/Data/GLDAS_NOAH025_3H.2.1/GLDAS_NOAH025_3H.2.1"
 
 # Create working directories
-mkdir -p temp_work input_files
+mkdir -p temp_work
 rm -rf ./temp_work/*  # Ensure the temp_work directory is empty
 
 # Iterate through the specified date range
@@ -62,9 +66,11 @@ while [[ "$current_date" < "$end_date" ]] || [[ "$current_date" == "$end_date" ]
     echo "Start Splitting Time Steps for ${current_date}..."
     time_steps=$(cdo showtimestamp ./temp_work/interp_1h_${current_date_str}.nc4 | tr ' ' '\n')
     for time_step in $time_steps; do
+	
+		echo "Processing time step: $time_step"
         # Generate the output filename
         date_str=$(date -d "$time_step" +"%Y%m%d.%H00")
-        output_file="./input_files/GLDAS_NOAH025_3H.A${date_str}.021.nc4"
+        output_file="${output_dir}/GLDAS_NOAH025_3H.A${date_str}.021.nc4"
         
         cdo seldate,$time_step ./temp_work/interp_1h_${current_date_str}.nc4 ${output_file}
         if [[ $? -ne 0 ]]; then
