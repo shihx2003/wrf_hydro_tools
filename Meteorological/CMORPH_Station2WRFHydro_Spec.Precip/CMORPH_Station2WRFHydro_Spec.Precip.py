@@ -108,7 +108,7 @@ lat = (np.arange(lat_min*100, (lat_max + grid_resolution)*100, grid_resolution*1
 
 grd_info = grdname(start, end)
 time_coords = pd.date_range(start, end, freq="h")
-
+              
 geo_sm = "./GEOGRID_LDASOUT_Spatial_Metadata.nc"
 geo_em = "./geo_em.d03.nc"
 geo_sm_ds = xr.open_dataset(geo_sm, autoclose=True)
