@@ -102,33 +102,53 @@ def CalDailyAvg(input_df):
     out_df = out_df.reset_index()
     return out_df
 
-def DrawStreamFlow(input_data, info=''):
+def DrawStreamFlow(obs, sim, filename, **kwargs):
     """
-    1.draw for preview
-    2.input(df with cloumn named "Date")
-    
-    """
-    columns = input_data.columns.tolist()[1:]
-    output_folder = 'charts'
-    if not os.path.exists(output_folder):
-        os.mkdir(output_folder)
-    
-    plt.figure(figsize=(18, 6), dpi=200)
+    Used for draw streamflow chart, input obs and sim dataframe.
 
-    for column in columns:
-        plt.plot(input_data['Date'], input_data[column], label=column)
+    Parameters
+    ----------
+    obs : DataFrame
+        Observed data with columns ['Date', 'obs']
+    sim : DataFrame
+        Simulated data with columns ['Date', 'sim1', 'sim2', ...]
+    filename : str
+        File name for saving the chart.
+    kwargs : dict
+        Additional parameters:
+            - out_dir : str, output directory for saving charts (default: './charts')
+            - mark : str, file name mark (default: '')
+            - date_name : str, name of the date column (default: 'Date')
+            - obs_name : str, name of the observed data column (default: 'obs')
+            - fig_size : tuple, figure size (default: (18, 6))
+    """
+    out_dir = kwargs.get('out_dir', './charts')
+    mark = kwargs.get('mark', '')
+    date_name = kwargs.get('datename', 'Date')
+    obs_name = kwargs.get('obsname', 'obs')
+    fig_size = kwargs.get('figsize', (18, 6))
+
+    sim_columns = sim.columns.tolist()[1:]
+    if not os.path.exists(out_dir):
+        os.mkdir(out_dir)
     
+    plt.figure(figsize=fig_size, dpi=200)
+    plt.plot(obs[date_name], obs[obs_name], label=obs_name, color='black', linestyle='-')
+
+    for column in sim_columns:
+        plt.plot(sim[date_name], sim[column], label=column)
+    
+    ymax = max(sim[sim_columns].max().max(), obs[obs_name].max()) * 1.2
+
     plt.ylabel('Flow Values')
     plt.grid(True)
     ax = plt.gca()
-    ax.set_ylim(0, 1.2 * input_data[columns].max().max())
-    plt.xlabel('Date')
-    plt.title(f'Flow Values Over Time-{info}')
+    ax.set_ylim(0, ymax)
+    plt.xlabel(date_name)
     plt.legend()
-    output_file = os.path.join(output_folder, f'{info}.png')
-    plt.savefig(output_file)
-    plt.show()
-    print(f'Saved {info}.png')
+    plt.title(f'Flow Values Over Time-{mark}')
+    plt.savefig(os.path.join(out_dir, f'{filename} {mark}.png'))
+    print(f'Saved {filename} {mark}.png')
 
 if __name__ == '__main__':
     
