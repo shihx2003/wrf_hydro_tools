@@ -41,7 +41,7 @@ class WRFHydroPrecipForcing:
         return geo_em_ds, geo_sm_ds
     
     def precip_regrid(self, forcing):
-        print(forcing)
+
         regridder = xe.Regridder(forcing, self.geo_em_ds, 'bilinear')
         forcing_regrid = regridder(forcing.precip_rate)
         forcing_regrid.coords['west_east'] = self.geo_sm_ds.x.values
@@ -144,18 +144,19 @@ class PrecipDataLoader:
         grid_value = self.read_grid(zip_path, grd_path)
         grid_ds = xr.Dataset(
             {
-                "precip": (["time", "lat", "lon"], grid_value[np.newaxis, :, :])
+                "precip": (["time", "lat", "lon"], grid_value[np.newaxis, :, :]),
+                "precip_rate": (["time", "lat", "lon"], grid_value[np.newaxis, :, :] / (60.0*60.0))
             },
             coords={
-                "time": [time],
+                "time": [time - pd.Timedelta(hours=8)], 
                 "lon": self.lon,
                 "lat": self.lat
             }
         )
         grid_ds["precip"].attrs["units"] = "mm/h"
         grid_ds["precip"].attrs["description"] = self.description
-        grid_ds.attrs["resolution"] = "0.01° x 0.01°"
-        grid_ds.attrs["time_zone"] = "UTC"
+        grid_ds.attrs["time_zone"] = "China Standard Time (CST)"
+        grid_ds.attrs["resolution"] = f"{self.grid_info['grid_res']}° x {self.grid_info['grid_res']}°"
         grid_ds.attrs["history"] = f"Created on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
         return grid_ds
@@ -164,7 +165,7 @@ class PrecipDataLoader:
         start = pd.to_datetime(start)
         end = pd.to_datetime(end)
         precip_names = self.precip_names(start, end)
-        times = pd.date_range(start, end, freq="h", tz="Asia/Shanghai").tz_convert("UTC").tz_localize(None)
+        times = pd.date_range(start, end, freq="h", tz="Asia/Shanghai")
         precip_file_info = np.array(list(zip(precip_names, times)))
         
         year = str(start.year)
@@ -175,7 +176,7 @@ class PrecipDataLoader:
         datasets.extend(results)
         precip_ds = xr.concat(datasets, dim="time")
 
-        precip_ds['precip_rate'] = precip_ds.precip / (60.0*60.0)
+        # precip_ds['precip_rate'] = precip_ds.precip / (60.0*60.0)
         precip_rate_ds = precip_ds.drop_vars('precip')
 
         return precip_rate_ds
@@ -196,13 +197,12 @@ if __name__ == "__main__":
         'lat_max': 43.0,
         'grid_res': 0.01,
         'file_format': 'm4',
-        'description': "China_Hourly_Merged_Precipitation_Analysis(CHMPA)_Data"
-        
+        'description': "1km-grid Analysis Real Time (ART_1km) precipitation"
     }
 
     precip_loader = PrecipDataLoader(zips_dir, grid_info, first_name='', last_name='.m4')
     precip_ds = precip_loader.load(start_time, end_time)
     print(precip_ds)
 
-    regrid = WRFHydroPrecipForcing(geo_em="./geo_em.d03.nc", out_path=out_path)
+    regrid = WRFHydroPrecipForcing(geo_em="./geo_em.d03.nc", out_path=out_path, description="1km-grid Analysis Real Time (ART_1km) precipitation")
     regrid.regrid(precip_ds)
