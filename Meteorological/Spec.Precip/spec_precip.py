@@ -18,17 +18,12 @@ from joblib import Parallel, delayed
 from datetime import datetime, timedelta
 
 class WRFHydroPrecipForcing:
-    def __init__(self, geo_em=None, geo_sm=None, out_path=None, **kwargs):
+    def __init__(self, geo_em=None, geo_sm=None, **kwargs):
 
         self.geo_em = geo_em if geo_em else "./geo_em.d01.nc"
         self.geo_sm = geo_sm if geo_sm else "./GEOGRID_LDASOUT_Spatial_Metadata.nc"
-        self.out_path = out_path if out_path else os.path.join(os.getcwd(), "output")
         self.description = kwargs.get('description', '')
         self.geo_em_ds, self.geo_sm_ds= self._read_geo()
-
-        if not os.path.exists(self.out_path):
-            os.makedirs(self.out_path)
-
 
     def _read_geo(self):
 
@@ -52,7 +47,7 @@ class WRFHydroPrecipForcing:
 
         return forcing_regrid
 
-    def save_PRECIP_FORCING(self, forcing_regrid):
+    def save_PRECIP_FORCING(self, forcing_regrid, save_path):
         dates = pd.to_datetime(forcing_regrid.time.values)
         for i in range(dates.size):
             str = dates[i].strftime('%Y%m%d%H')
@@ -60,11 +55,15 @@ class WRFHydroPrecipForcing:
             precip_forcing.attrs['units'] = "mm/s"
             precip_forcing.attrs['description'] = self.description
             precip_forcing.attrs["history"] = f"Created on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            precip_forcing.to_netcdf(f"{self.out_path}/{str}00.PRECIP_FORCING.nc")
+            precip_forcing.to_netcdf(f"{save_path}/{str}00.PRECIP_FORCING.nc")
 
-    def regrid(self, forcing):
+    def regrid(self, forcing, save_path=None):
+        if save_path:
+            save_path = os.path.join(os.getcwd(), "output")
+        if not os.path.exists(save_path):
+            os.makedirs(save_path)
         forcing_regrid = self.precip_regrid(forcing)
-        self.save_PRECIP_FORCING(forcing_regrid)
+        self.save_PRECIP_FORCING(forcing_regrid, save_path)
         return forcing_regrid
 
 class PrecipDataLoader:
@@ -93,15 +92,17 @@ class PrecipDataLoader:
         print(len(lon), len(lat))
         return lon, lat
     
-    def precip_names(self, start_time, end_time):
+    def precip_info(self, start_time, end_time):
         file_names = []
+        times = []
         while start_time <= end_time:
             time_str = start_time.strftime("%Y%m%d%H")
             name =self.first_name + time_str + self.last_name
             file_names.append(name)
+            times.append(start_time)
             start_time += timedelta(hours=1)
-
-        return file_names
+        files_info = np.array(list(zip(file_names, times)))
+        return files_info
     
     def readzip(self, zip_path, name):
         if not os.path.exists(zip_path):
@@ -148,7 +149,7 @@ class PrecipDataLoader:
                 "precip_rate": (["time", "lat", "lon"], grid_value[np.newaxis, :, :] / (60.0*60.0))
             },
             coords={
-                "time": [time - pd.Timedelta(hours=8)], 
+                "time": [time - pd.Timedelta(hours=8)], # Convert to UTC
                 "lon": self.lon,
                 "lat": self.lat
             }
@@ -164,9 +165,7 @@ class PrecipDataLoader:
     def load(self, start, end):
         start = pd.to_datetime(start)
         end = pd.to_datetime(end)
-        precip_names = self.precip_names(start, end)
-        times = pd.date_range(start, end, freq="h", tz="Asia/Shanghai")
-        precip_file_info = np.array(list(zip(precip_names, times)))
+        precip_file_info = self.precip_info(start, end)
         
         year = str(start.year)
 
