@@ -20,7 +20,7 @@ from datetime import datetime, timedelta
 class WRFHydroPrecipForcing:
     def __init__(self, geo_em=None, geo_sm=None, **kwargs):
 
-        self.geo_em = geo_em if geo_em else "./geo_em.d01.nc"
+        self.geo_em = geo_em if geo_em else "./geo_em.d03.nc"
         self.geo_sm = geo_sm if geo_sm else "./GEOGRID_LDASOUT_Spatial_Metadata.nc"
         self.description = kwargs.get('description', '')
         self.geo_em_ds, self.geo_sm_ds= self._read_geo()
@@ -71,7 +71,7 @@ class PrecipDataLoader:
 
         self.zips_dir = zips_dir
         self.first_name = first_name if first_name else ''
-        self.last_name = last_name if last_name else ''
+        self.last_name = last_name if last_name else '.' + grid_info['file_format']
         self.grid_info = grid_info
         self.file_format = self.grid_info['file_format']
         self.description = grid_info.get('description', '')
@@ -116,6 +116,8 @@ class PrecipDataLoader:
         
         if self.file_format == "m4":
             return self._read_m4(zip_path, path)
+        elif self.file_format == "grd":
+            return self._read_grd(zip_path, path)
         else:
             raise ValueError(f"Unsupported file format: {self.file_format}")
 
@@ -133,8 +135,13 @@ class PrecipDataLoader:
         
         return grid_array
     
-    def _read_grd():
-        pass
+    def _read_grd(self, zip_path, grd_path):
+        content = self.readzip(zip_path, grd_path)
+        grid_data = np.frombuffer(content, dtype=np.float32)
+        grid_data = grid_data.reshape(2, len(self.lat), len(self.lon))
+        grid_data=np.maximum(grid_data[0, :, :], 0)
+
+        return grid_data
 
     def process_grid_data(self, file_info, year):
 
@@ -149,14 +156,16 @@ class PrecipDataLoader:
                 "precip_rate": (["time", "lat", "lon"], grid_value[np.newaxis, :, :] / (60.0*60.0))
             },
             coords={
-                "time": [time - pd.Timedelta(hours=8)], # Convert to UTC
+                "time": [time], # Convert to UTC ?
                 "lon": self.lon,
                 "lat": self.lat
             }
         )
         grid_ds["precip"].attrs["units"] = "mm/h"
         grid_ds["precip"].attrs["description"] = self.description
-        grid_ds.attrs["time_zone"] = "China Standard Time (CST)"
+        grid_ds["precip_rate"].attrs["units"] = "mm/s"
+        grid_ds["precip_rate"].attrs["description"] = self.description
+        grid_ds.attrs["time_zone"] = "UTC"
         grid_ds.attrs["resolution"] = f"{self.grid_info['grid_res']}° x {self.grid_info['grid_res']}°"
         grid_ds.attrs["history"] = f"Created on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
