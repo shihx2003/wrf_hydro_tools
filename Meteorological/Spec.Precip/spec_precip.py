@@ -55,10 +55,10 @@ class WRFHydroPrecipForcing:
             precip_forcing.attrs['units'] = "mm/s"
             precip_forcing.attrs['description'] = self.description
             precip_forcing.attrs["history"] = f"Created on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            precip_forcing.to_netcdf(f"{save_path}/{str}00.PRECIP_FORCING.nc")
+            precip_forcing.to_netcdf(os.path.join(save_path, f'{str}00.PRECIP_FORCING.nc'))
 
     def regrid(self, forcing, save_path=None):
-        if save_path:
+        if save_path==None:
             save_path = os.path.join(os.getcwd(), "output")
         if not os.path.exists(save_path):
             os.makedirs(save_path)
